@@ -1080,13 +1080,14 @@ class MiniWorldEnv(gym.Env):
 
         return img
 
-    def render_top_view(self, frame_buffer=None):
+    def render_top_view(self, view_size = [800, 800]):
         """
         Render a top view of the whole map (from above)
         """
-
-        if frame_buffer == None:
-            frame_buffer = self.obs_fb
+        top_view_buffer = FrameBuffer(view_size[0], view_size[1], 16)
+        frame_buffer = top_view_buffer
+        # if frame_buffer == None:
+        #     frame_buffer = self.obs_fb
 
         # Switch to the default OpenGL context
         # This is necessary on Linux Nvidia drivers

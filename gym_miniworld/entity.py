@@ -501,10 +501,11 @@ class Agent(Entity):
         p = self.pos + Y_VEC * self.height
         dv = self.dir_vec * self.radius
         rv = self.right_vec * self.radius
-
+        
+        # Change 0.75 to 0.25 by Yukun to show the direction of agent clearly
         p0 = p + dv
-        p1 = p + 0.75 * (rv - dv)
-        p2 = p + 0.75 * (-rv - dv)
+        p1 = p + 0.25 * (rv - dv)
+        p2 = p + 0.25 * (-rv - dv)
 
         glColor3f(1, 0, 0)
         glBegin(GL_TRIANGLES)
