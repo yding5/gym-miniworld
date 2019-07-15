@@ -63,7 +63,8 @@ def get_args():
                         help='use a recurrent policy')
     parser.add_argument('--vis', action='store_true', default=False,
                         help='enable visdom visualization')
-    parser.add_argument('--port', type=int, default=8097,
+    #parser.add_argument('--port', type=int, default=8097,
+    parser.add_argument('--port', type=int, default=8092,
                         help='port to run the server on (default: 8097)')
     args = parser.parse_args()
 

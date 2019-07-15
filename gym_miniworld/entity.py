@@ -375,6 +375,8 @@ class Box(Entity):
 
         self.radius = math.sqrt(sx*sx + sz*sz)/2
         self.height = sy
+        
+        self.__name__ = 'Box'
 
     def randomize(self, params, rng):
         self.color_vec = COLORS[self.color] + params.sample(rng, 'obj_color_bias')
@@ -417,6 +419,7 @@ class Key(MeshEnt):
             height=0.35,
             static=False
         )
+        self.__name__ = 'Key'
 
 class Ball(MeshEnt):
     """
@@ -430,6 +433,63 @@ class Ball(MeshEnt):
             height=size,
             static=False
         )
+        self.__name__ = 'Ball'
+        
+class Medkit(MeshEnt):
+    """
+    Medkit the agent can pick up and carry
+    """
+
+    def __init__(self, color, size=0.6):
+        assert color in COLOR_NAMES
+        super().__init__(
+            mesh_name='medkit',
+            height=size,
+            static=False
+        )
+        self.__name__ = 'Medkit'
+        
+class Building(MeshEnt):
+    """
+    Medkit the agent can pick up and carry
+    """
+
+    def __init__(self, color, size=0.6):
+        assert color in COLOR_NAMES
+        super().__init__(
+            mesh_name='building',
+            height=size,
+            static=False
+        )
+        self.__name__ = 'Building'
+
+class Cone(MeshEnt):
+    """
+    Medkit the agent can pick up and carry
+    """
+
+    def __init__(self, color, size=0.6):
+        assert color in COLOR_NAMES
+        super().__init__(
+            mesh_name='cone',
+            height=size,
+            static=False
+        )
+        self.__name__ = 'Cone'
+        
+class Duckie(MeshEnt):
+    """
+    Medkit the agent can pick up and carry
+    """
+
+    def __init__(self, color, size=0.6):
+        assert color in COLOR_NAMES
+        super().__init__(
+            mesh_name='duckie',
+            height=size,
+            static=False
+        )        
+        self.__name__ = 'Duckie'
 
 class Agent(Entity):
     def __init__(self):
@@ -451,6 +511,8 @@ class Agent(Entity):
 
         # Object currently being carried by the agent
         self.carrying = None
+        
+        self.__name__ = 'Agent'
 
     @property
     def cam_pos(self):
@@ -503,9 +565,9 @@ class Agent(Entity):
         rv = self.right_vec * self.radius
         
         # Change 0.75 to 0.25 by Yukun to show the direction of agent clearly
-        p0 = p + dv
-        p1 = p + 0.25 * (rv - dv)
-        p2 = p + 0.25 * (-rv - dv)
+        p0 = p + 1.2 * dv
+        p1 = p - 0.5 * dv + 0.3 * rv
+        p2 = p - 0.5 * dv - 0.3 * rv
 
         glColor3f(1, 0, 0)
         glBegin(GL_TRIANGLES)

@@ -17,6 +17,9 @@ from .collecthealth import *
 from .simtorealgoto import *
 from .simtorealpush import *
 
+#
+from .navigation import *
+
 # Registered environment ids
 env_ids = []
 

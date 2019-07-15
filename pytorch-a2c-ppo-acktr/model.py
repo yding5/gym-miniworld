@@ -3,14 +3,88 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from distributions import Categorical, DiagGaussian
-from utils import init, init_normc_
+from utils import init, init_normc_, init_weights
+
+import torch.optim as optim
 
 
 class Flatten(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), -1)
 
+class VAE(nn.Module):
+    def __init__(self, obs_shape, lr, eps):
+        super(VAE, self).__init__()
+        self.encoder = nn.Sequential(
+            #Print(),
 
+            nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(),
+            #Print(),
+
+            nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(),
+            #Print(),
+
+            nn.Conv2d(32, 32, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(),
+            #Print(),
+
+            #nn.Dropout(0.2),
+            
+        )
+
+        self.decoder = nn.Sequential(
+            #Print(),
+
+            nn.ConvTranspose2d(32, 32, kernel_size=3, stride=2, padding=1, output_padding=1),
+            #nn.BatchNorm2d(32),
+            nn.LeakyReLU(),
+            #Print(),
+
+            nn.ConvTranspose2d(32, 32, kernel_size=3, stride=2, padding=1, output_padding=1),
+            #nn.BatchNorm2d(32),
+            nn.LeakyReLU(),
+            #Print(),
+
+            nn.ConvTranspose2d(32, 3, kernel_size=3, stride=2, padding=1, output_padding=1),
+            #nn.BatchNorm2d(32),
+            nn.LeakyReLU(),
+            #Print(),
+
+            #nn.ConvTranspose2d(32, 3, kernel_size=3, stride=1),
+            #nn.BatchNorm2d(32),
+            #nn.LeakyReLU(),
+            #Print(),
+            
+        )
+
+        """
+        self.enc_to_out = nn.Sequential(
+            nn.Linear(32 * 5 * 8, 256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 32),
+            nn.LeakyReLU(),
+            nn.Linear(32, 2)
+        )
+        """
+
+        self.apply(init_weights)
+        
+    def encode(self, x):
+        return self.encoder(x)
+    
+    def decode(self, x):
+        return self.decoder(x)
+    
+    #self.optimizer = optim.Adam(self.parameters(), lr=lr, eps=eps)
+    
+    
 class Policy(nn.Module):
     def __init__(self, obs_shape, action_space, base_kwargs=None):
         super(Policy, self).__init__()
