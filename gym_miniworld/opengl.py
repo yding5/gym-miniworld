@@ -144,7 +144,7 @@ class FrameBuffer:
             max_samples = max_samples.value
 
             if num_samples > max_samples:
-                print('Falling back to num_samples={}'.format(max_samples))
+                #print('Falling back to num_samples={}'.format(max_samples)) # Ignore this warning
                 num_samples = max_samples
 
             # Create a multisampled texture to render into

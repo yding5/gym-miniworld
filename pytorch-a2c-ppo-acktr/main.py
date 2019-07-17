@@ -221,6 +221,6 @@ def main():
             except IOError:
                 pass
         """
-
+    envs.close()
 if __name__ == "__main__":
     main()

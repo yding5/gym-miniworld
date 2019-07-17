@@ -10,10 +10,116 @@ import torch.optim as optim
 
 class Flatten(nn.Module):
     def forward(self, x):
-        return x.view(x.size(0), -1)
+        return x.view(x.size(0), -1) 
+    
+class DeFlatten8(nn.Module):
+    def forward(self, x):
+        return x.view(x.size(0), -1, 8, 8) 
+    
+    
+class RNN(nn.Module):
+    def __init__(self, input_dim, hidden_dim, num_type = 6):
+        super(RNN, self).__init__()
+        self.lstm = nn.LSTM(input_dim, hidden_dim)
+        self.toObjType = nn.Linear(hidden_dim, num_type)
+        self.toConf = nn.Linear(hidden_dim,1)
+        self.sigmoid = nn.Sigmoid()
+        
+    def forward(self, inputs):
+        out, (hn, cn) = self.lstm(inputs)
+        obj = self.toObjType(out)
+        conf = self.sigmoid(self.toConf(out))
+        return obj, conf
+    
+    
+    
+class VAEU(nn.Module):
+    def __init__(self, obs_shape):
+        super(VAEU, self).__init__()
+        self.encoder = nn.Sequential(
+            #Print(),
 
+            nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(),
+            #Print(),
+
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(),
+            #Print(),
+
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(),
+            
+            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(),
+            Flatten(),
+
+            #nn.Dropout(0.2),
+            nn.Linear(256*8*8, 200)
+            
+        )
+
+        self.decoder = nn.Sequential(
+
+            nn.Linear(200, 256*8*8),
+            #Print(),
+            DeFlatten8(),
+            nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(),
+            #Print(),
+            nn.Upsample(scale_factor=2, mode='nearest'), 
+            nn.Conv2d(128, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(),
+            #Print(),
+            nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(64, 32, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(),
+            #Print(),
+
+            nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(32, 3, kernel_size=3, stride=1, padding=1),
+            #nn.BatchNorm2d(3),
+            nn.Sigmoid(),
+            #nn.ConvTranspose2d(32, 3, kernel_size=3, stride=1),
+            #nn.BatchNorm2d(32),
+            #nn.LeakyReLU(),
+            #Print(),
+            
+        )
+
+        """
+        self.enc_to_out = nn.Sequential(
+            nn.Linear(32 * 5 * 8, 256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 256),
+            nn.LeakyReLU(),
+            nn.Linear(256, 32),
+            nn.LeakyReLU(),
+            nn.Linear(32, 2)
+        )
+        """
+
+        self.apply(init_weights)
+        
+    def encode(self, x):
+        return self.encoder(x)
+    
+    def decode(self, x):
+        return self.decoder(x)
+    
+    #self.optimizer = optim.Adam(self.parameters(), lr=lr, eps=eps)
+    
+    
 class VAE(nn.Module):
-    def __init__(self, obs_shape, lr, eps):
+    def __init__(self, obs_shape):
         super(VAE, self).__init__()
         self.encoder = nn.Sequential(
             #Print(),
@@ -41,17 +147,17 @@ class VAE(nn.Module):
             #Print(),
 
             nn.ConvTranspose2d(32, 32, kernel_size=3, stride=2, padding=1, output_padding=1),
-            #nn.BatchNorm2d(32),
+            nn.BatchNorm2d(32),
             nn.LeakyReLU(),
             #Print(),
 
             nn.ConvTranspose2d(32, 32, kernel_size=3, stride=2, padding=1, output_padding=1),
-            #nn.BatchNorm2d(32),
+            nn.BatchNorm2d(32),
             nn.LeakyReLU(),
             #Print(),
 
             nn.ConvTranspose2d(32, 3, kernel_size=3, stride=2, padding=1, output_padding=1),
-            #nn.BatchNorm2d(32),
+            nn.BatchNorm2d(32),
             nn.LeakyReLU(),
             #Print(),
 

@@ -33,9 +33,6 @@ print(left_turn_tendency)
 
 
 
-
-
-
 def rand_act_1(env, act_list):
     r = random.randint(0,99)
     if r < 25:
@@ -101,25 +98,25 @@ def step(action):
     
 act_list = []
 action_space = [env.actions.move_forward, env.actions.move_back, env.actions.turn_left, env.actions.turn_right]
-for j in range(20):
-    obs_list = []
-    ren_list = []
-    top_list = []
-    ent_info_list = []
-    for _ in range(10):
-        #print(env.params['forward_step'])
-        if len(act_list) == 0:
-            act_list = rand_act_1(env, act_list)
-        #act = random.choice(action_space)
-        step(act_list[0])
-        del act_list[0]
-    env.reset()
-    obs_list = np.asarray(obs_list)
-    top_list = np.asarray(top_list)
-    ren_list = np.asarray(ren_list)
-    ent_info_list = np.asarray(ent_info_list)
 
-    np.savez_compressed('/hdd_c/data/miniWorld/obs/test.npz', obs = obs_list, top = top_list, ren = ren_list, ent = ent_info_list)
+obs_list = []
+ren_list = []
+top_list = []
+ent_info_list = []
+for _ in range(40):
+    #print(env.params['forward_step'])
+    if len(act_list) == 0:
+        act_list = rand_act_1(env, act_list)
+    #act = random.choice(action_space)
+    step(act_list[0])
+    del act_list[0]
+env.reset()
+obs_list = np.asarray(obs_list)
+top_list = np.asarray(top_list)
+ren_list = np.asarray(ren_list)
+ent_info_list = np.asarray(ent_info_list)
+
+np.savez_compressed('/hdd_c/data/miniWorld/obs/test.npz', obs = obs_list, top = top_list, ren = ren_list, ent = ent_info_list)
 
 
 env.close()

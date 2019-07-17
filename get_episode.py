@@ -14,6 +14,16 @@ import time
 
 import random
 
+import argparse
+
+
+parser = argparse.ArgumentParser(description='get episode')
+parser.add_argument('--path', 
+                    help='path to save file')
+parser.add_argument('--idx', type=int, 
+                    help='idx of file')
+
+args = parser.parse_args()
 
 
 # if args.domain_rand:
@@ -31,7 +41,7 @@ def rand_act_1(env, act_list, left_turn_tendency):
 
 
 def step(env, action):
-    print('step {}/{}: {}'.format(env.step_count+1, env.max_episode_steps, env.actions(action).name))
+    #print('step {}/{}: {}'.format(env.step_count+1, env.max_episode_steps, env.actions(action).name))
 
     obs, reward, done, info = env.step(action)
     
@@ -60,9 +70,9 @@ def step(env, action):
         else:
             raise NotImplementedError('unknown object type')
         if ent_name == 1:
-            ent_info.append([ent.pos[0], ent.pos[1], ent.pos[2], ent.dir, ent.size[0], ent.size[1], ent.size[2]])
+            ent_info.append([ent_name, ent.pos[0], ent.pos[1], ent.pos[2], ent.dir, ent.size[0], ent.size[1], ent.size[2]])
         else:
-            ent_info.append([ent.pos[0], ent.pos[1], ent.pos[2], ent.dir, ent.radius, ent.height, ent.radius])   
+            ent_info.append([ent_name, ent.pos[0], ent.pos[1], ent.pos[2], ent.dir, ent.radius, ent.height, ent.radius])   
     ent_info = np.asarray(ent_info)
 
     if reward > 0:
@@ -115,7 +125,9 @@ def get_one_episode(env, path, idx):
 # if args.no_time_limit:
 #     env.max_episode_steps = math.inf
 
-path = '/hdd_c/data/miniWorld/dataset_1/'
+
+path = args.path
+idx_episode = args.idx
 print('saving to {}'.format(path))
 
 # obs_eps = []
@@ -125,12 +137,11 @@ print('saving to {}'.format(path))
 
 
 
-for idx_episode in range(1000):
-    env = gym.make('MiniWorld-Navigation-v0', num_objs=1)
-    print('start episode {}'.format(idx_episode))
-    get_one_episode(env, path, idx_episode)
-    env.close()
-    del env
+env = gym.make('MiniWorld-Navigation-v0', num_objs=1)
+print('maximum steps: {}'.format(env.max_episode_steps))
+print('start episode {}'.format(idx_episode))
+get_one_episode(env, path, idx_episode)
+env.close()
     #obs_seq, top_seq, ren_seq, ent_info_seq = get_one_episode(env)
     #obs_eps.append(obs_seq)
     #top_eps.append(top_seq)
@@ -146,3 +157,4 @@ for idx_episode in range(1000):
 
 # rendering is not saved to save space
 #np.savez_compressed('/hdd_c/data/miniWorld/dataset/data_{}.npz'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")), obs = obs_eps, top = top_eps, ent = ent_info_eps) 
+
