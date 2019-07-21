@@ -155,12 +155,12 @@ class trainRNN():
             eval_acc = np.mean(np.asarray(acc_list), axis=0)
             eval_conf = np.mean(np.asarray(conf_list), axis=0)
             eval_loss = np.mean(np.asarray(loss_list), axis=0)
-            print('Eval results:')
-            print(eval_acc[0])
-            print(eval_acc[-1])
-            print(eval_conf[0])
-            print(eval_conf[-1])
-            print(eval_loss)
+            print('Eval results: loss {}, acc[0] {}, acc[-1] {}, conf[0] {}, conf[-1] {}'.format(eval_loss, eval_acc[0],eval_acc[-1],eval_conf[0],eval_conf[-1]))
+#             print(eval_acc[0])
+#             print(eval_acc[-1])
+#             print(eval_conf[0])
+#             print(eval_conf[-1])
+#             print(eval_loss)
 
 
 
@@ -237,7 +237,7 @@ def main():
     
     print(device)
     #model = VAE([128,128], lr=args.lr, eps=args.eps)
-    model = RNN(200, 64)
+    model = RNN(200, 128)
     model_path = '/hdd_c/data/miniWorld/trained_models/RNN/RNN1.pth'
     data_path = '/hdd_c/data/miniWorld/z_dataset_1/'
 
@@ -247,11 +247,11 @@ def main():
     print(np.amin(all_obj_type))
     print('Available number of seq: {}'.format(all_z.shape[1]))
     print(all_z.shape)
-    x_train = all_z[:,:1500]
-    y_train = all_obj_type[:,:1500]
+    x_train = all_z[:,:2500]
+    y_train = all_obj_type[:,:2500]
     print(y_train[0,0])
-    x_val = all_z[:,1500:]
-    y_val = all_obj_type[:,1500:]
+    x_val = all_z[:,2500:]
+    y_val = all_obj_type[:,2500:]
 
     
     print(x_train.shape)

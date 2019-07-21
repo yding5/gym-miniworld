@@ -416,7 +416,7 @@ class Key(MeshEnt):
         assert color in COLOR_NAMES
         super().__init__(
             mesh_name='key_{}'.format(color),
-            height=0.35,
+            height=1.0,
             static=False
         )
         self.__name__ = 'Key'
@@ -426,7 +426,7 @@ class Ball(MeshEnt):
     Ball (sphere) the agent can pick up and carry
     """
 
-    def __init__(self, color, size=0.6):
+    def __init__(self, color, size=1.0):
         assert color in COLOR_NAMES
         super().__init__(
             mesh_name='ball_{}'.format(color),
@@ -440,7 +440,7 @@ class Medkit(MeshEnt):
     Medkit the agent can pick up and carry
     """
 
-    def __init__(self, color, size=0.6):
+    def __init__(self, color, size=1.0):
         assert color in COLOR_NAMES
         super().__init__(
             mesh_name='medkit',
@@ -454,7 +454,7 @@ class Building(MeshEnt):
     Medkit the agent can pick up and carry
     """
 
-    def __init__(self, color, size=0.6):
+    def __init__(self, color, size=1.0):
         assert color in COLOR_NAMES
         super().__init__(
             mesh_name='building',
@@ -468,7 +468,7 @@ class Cone(MeshEnt):
     Medkit the agent can pick up and carry
     """
 
-    def __init__(self, color, size=0.6):
+    def __init__(self, color, size=1.0):
         assert color in COLOR_NAMES
         super().__init__(
             mesh_name='cone',
@@ -482,7 +482,7 @@ class Duckie(MeshEnt):
     Medkit the agent can pick up and carry
     """
 
-    def __init__(self, color, size=0.6):
+    def __init__(self, color, size=1.0):
         assert color in COLOR_NAMES
         super().__init__(
             mesh_name='duckie',

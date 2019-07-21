@@ -16,9 +16,10 @@ import torch.optim as optim
 import algo
 from arguments import get_args
 from envs import make_vec_envs
-from model import Policy
+from model import Policy, VAEU
 from storage import RolloutStorage
 #from visualize import visdom_plot
+from utils import make_var
 
 args = get_args()
 
@@ -54,6 +55,19 @@ def main():
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if args.cuda else "cpu")
 
+    
+    # load pre-trained VAE
+    VAE = VAEU([128,128])
+    model_path = '/hdd_c/data/miniWorld/trained_models/VAE/VAEU.pth'
+    model = torch.load(model_path)
+    model.eval()
+    
+    embedding_size = (200,)
+    
+    
+    
+    
+    
     """
     if args.vis:
         from visdom import Visdom
@@ -63,8 +77,12 @@ def main():
 
     envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
                         args.gamma, args.log_dir, args.add_timestep, device, False)
+    
+    print(envs.observation_space.shape)
 
-    actor_critic = Policy(envs.observation_space.shape, envs.action_space,
+    #actor_critic = Policy(envs.observation_space.shape, envs.action_space,
+    #    base_kwargs={'recurrent': args.recurrent_policy})
+    actor_critic = Policy(embedding_size, envs.action_space,
         base_kwargs={'recurrent': args.recurrent_policy})
     actor_critic.to(device)
 
@@ -83,12 +101,22 @@ def main():
         agent = algo.A2C_ACKTR(actor_critic, args.value_loss_coef,
                                args.entropy_coef, acktr=True)
 
+    #rollouts = RolloutStorage(args.num_steps, args.num_processes,
+    #                    envs.observation_space.shape, envs.action_space,
+    #                    actor_critic.recurrent_hidden_state_size)
     rollouts = RolloutStorage(args.num_steps, args.num_processes,
-                        envs.observation_space.shape, envs.action_space,
+                        embedding_size, envs.action_space,
                         actor_critic.recurrent_hidden_state_size)
 
+
     obs = envs.reset()
-    rollouts.obs[0].copy_(obs)
+    #print(obs.size())
+    #obs = make_var(obs)
+    #print(obs.size())
+    with torch.no_grad():
+        z = model.encode(obs)
+        rollouts.obs[0].copy_(z)
+    #rollouts.obs[0].copy_(obs)
     rollouts.to(device)
 
     episode_rewards = deque(maxlen=100)
@@ -105,6 +133,9 @@ def main():
 
             # Obser reward and next obs
             obs, reward, done, infos = envs.step(action)
+            with torch.no_grad():
+                #obs = make_var(obs)
+                z = model.encode(obs)
 
             """
             for info in infos:
@@ -120,7 +151,8 @@ def main():
 
             # If done then clean the history of observations.
             masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
-            rollouts.insert(obs, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
+            #rollouts.insert(obs, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
+            rollouts.insert(z, recurrent_hidden_states, action, action_log_prob, value, reward, masks)
 
         with torch.no_grad():
             next_value = actor_critic.get_value(rollouts.obs[-1],

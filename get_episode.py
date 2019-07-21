@@ -22,6 +22,8 @@ parser.add_argument('--path',
                     help='path to save file')
 parser.add_argument('--idx', type=int, 
                     help='idx of file')
+parser.add_argument('--num_objs', type=int,
+                    help='idx of file')
 
 args = parser.parse_args()
 
@@ -128,6 +130,7 @@ def get_one_episode(env, path, idx):
 
 path = args.path
 idx_episode = args.idx
+num_objs = args.num_objs
 print('saving to {}'.format(path))
 
 # obs_eps = []
@@ -137,7 +140,7 @@ print('saving to {}'.format(path))
 
 
 
-env = gym.make('MiniWorld-Navigation-v0', num_objs=1)
+env = gym.make('MiniWorld-Navigation-v0', num_objs=num_objs)
 print('maximum steps: {}'.format(env.max_episode_steps))
 print('start episode {}'.format(idx_episode))
 get_one_episode(env, path, idx_episode)

@@ -24,75 +24,6 @@ from utils import make_var
 import random
 
 
-class trainVAE():
-    def __init__(self, device, model, lr, eps, data_train, data_eval, batch_size = 32):
-        self.model = model.to(device)
-        self.optimizer = optim.Adam(model.parameters(), lr=lr, eps=eps)
-        self.batch_size = batch_size
-        self.data_train = data_train
-        self.data_eval = data_eval
-        self.BCELoss = nn.BCELoss()
-        
-    def train(self, data=None):
-        if data == None:
-            data = self.data_train
-        self.model.train()
-        np.save('/hdd_c/data/miniWorld/obs/eval_input_batch_test_train.npy',data[:32])
-        for e in range(10):
-            num_batch = len(data)//self.batch_size
-            #idx = 0
-            for i in range(num_batch):
-                batch = data[i*self.batch_size:(i+1)*self.batch_size]
-                batch = make_var(batch)
-                self.optimizer.zero_grad()
-
-                z = self.model.encode(batch)
-                y = self.model.decode(z)
-                #print(y.size())
-                loss = self.BCELoss(y, batch)
-                #diff = y - batch
-                #loss = (diff * diff).mean() # L2 loss
-                
-                if i % 50 == 0:
-                    print('Loss at epoch {} batch {}: {}'.format(e, i, loss))
-                
-                loss.backward()
-                self.optimizer.step()
-            self.eval()
-            
-    def eval(self, data=None, path='/hdd_c/data/miniWorld/obs/'):
-        if data == None:
-            data = self.data_eval
-        self.model.eval()
-#         for i in enumerate(data):
-#             image = data[i]
-#             z = model.encode(image)
-#             r = model.decode(z)
-#             np.save(path+'eval_{}.npy'.format(i), r)
-#             diff = r - image
-#             loss = (diff * diff).mean() # L2 loss
-#             print(loss)
-            
-        num_batch = len(data)//self.batch_size
-        loss_list = []
-        with torch.no_grad():   
-            for i in range(num_batch):
-                batch = data[i*self.batch_size:(i+1)*self.batch_size]
-                batch = make_var(batch)
-                z = self.model.encode(batch)
-                y = self.model.decode(z)
-                if i == 0:
-                    np.save(path+'VAEU_eval_reconstruction_batch_{}.npy'.format(i), y.detach().cpu())
-                    np.save(path+'VAEU_eval_input_batch_{}.npy'.format(i), batch.detach().cpu())
-                diff = y - batch
-                loss = (diff * diff).mean() # L2 loss
-                loss_list.append(loss)
-                #if i % 50 == 0:
-                #    print('Loss at epoch {} batch {}: {}'.format(e, i, loss))
-            print('Average L2 reconstruction loss on eval data: {}'.format(sum(loss_list)/len(loss_list)))
-
-
-
 
 
 def get_args():
@@ -196,8 +127,8 @@ def main():
         obs = make_var(eps)
         z = model.encode(obs)
         z_numpy = z.detach().cpu()
-        print(z_numpy.shape)
-        print(obj_type.shape)
+        #print(z_numpy.shape)
+        #print(obj_type.shape)
         np.savez_compressed(z_data_path+'eps_{}.npz'.format(idx), z = z_numpy, obj_type = obj_type)
         #np.save(z_data_path+'obj_type_{}.npy'.format(idx), obj_type)
     

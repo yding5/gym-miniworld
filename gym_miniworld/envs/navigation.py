@@ -68,7 +68,7 @@ class Navigation(MiniWorldEnv):
                 #print(ent.pos)
                 #print(ent.dir)
             if obj_type == Ball:
-                ent = self.place_entity(Ball(color='blue', size=0.9))
+                ent = self.place_entity(Ball(color='blue'))
             if obj_type == Key:
                 ent = self.place_entity(Key(color='yellow'))
             if obj_type == Building:

@@ -110,6 +110,7 @@ class VAEU(nn.Module):
         self.apply(init_weights)
         
     def encode(self, x):
+        print(x.size())
         return self.encoder(x)
     
     def decode(self, x):
