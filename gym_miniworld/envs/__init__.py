@@ -19,6 +19,7 @@ from .simtorealpush import *
 
 #
 from .navigation import *
+from .food import *
 
 # Registered environment ids
 env_ids = []

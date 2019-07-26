@@ -1,7 +1,7 @@
 import numpy as np
 import math
 from ..miniworld import MiniWorldEnv, Room
-from ..entity import Box
+from ..entity import Box, MeshEnt
 from gym import spaces
 
 class Hallway(MiniWorldEnv):
@@ -13,12 +13,13 @@ class Hallway(MiniWorldEnv):
     def __init__(self, length=12, **kwargs):
         assert length >= 2
         self.length = length
+        self.ent_list = []
 
         super().__init__(
             max_episode_steps=250,
             **kwargs
         )
-
+        
         # Allow only movement actions (left/right/forward)
         self.action_space = spaces.Discrete(self.actions.move_forward+1)
 
@@ -31,19 +32,22 @@ class Hallway(MiniWorldEnv):
 
         # Place the box at the end of the hallway
         self.box = self.place_entity(
-            Box(color='red'),
+            MeshEnt(
+                mesh_name='ball',
+                height=1.0
+            ),
             min_x=room.max_x - 2
         )
-
+        self.ent_list.append(self.box)
         # Place the agent a random distance away from the goal
-        self.place_agent(
+        ent = self.place_agent(
             dir=self.rand.float(-math.pi/4, math.pi/4),
             max_x=room.max_x - 2
         )
-
+        self.ent_list.append(ent)
     def step(self, action):
         obs, reward, done, info = super().step(action)
-
+        info['test'] = self.ent_list
         if self.near(self.box):
             reward += self._reward()
             done = True

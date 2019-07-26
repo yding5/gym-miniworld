@@ -24,19 +24,20 @@ from utils import make_var
 
 
 class trainVAE():
-    def __init__(self, device, model, lr, eps, data_train, data_eval, batch_size = 32):
+    def __init__(self, device, model, lr, eps, data_train, data_eval, model_path, batch_size = 32):
         self.model = model.to(device)
         self.optimizer = optim.Adam(model.parameters(), lr=lr, eps=eps)
         self.batch_size = batch_size
         self.data_train = data_train
         self.data_eval = data_eval
         self.BCELoss = nn.BCELoss()
+        self.model_path = model_path
         
     def train(self, data=None):
         if data == None:
             data = self.data_train
         self.model.train()
-        np.save('/hdd_c/data/miniWorld/obs/eval_input_batch_test_train.npy',data[:32])
+        #np.save('/hdd_c/data/miniWorld/obs/eval_input_batch_test_train.npy',data[:32])
         for e in range(15):
             num_batch = len(data)//self.batch_size
             #idx = 0
@@ -50,12 +51,13 @@ class trainVAE():
                 #print(y.size())
                 loss = self.BCELoss(y, batch)
                 
-                if i % 50 == 0:
+                if i % 100 == 0:
                     print('Loss at epoch {} batch {}: {}'.format(e, i, loss))
                 
                 loss.backward()
                 self.optimizer.step()
             self.eval()
+            save_model(self.model, self.model_path+'_epoch_{}_backup'.format(e))
             
     def eval(self, data=None, path='/hdd_c/data/miniWorld/obs/'):
         if data == None:
@@ -114,14 +116,18 @@ def get_args():
 args = get_args()
 
 
-def read_data(path):
+def read_data(path, max_num_eps = None):
     obs_list = []
     filelist = os.listdir(path)
+    num = 0
     for name in filelist:
         if name.endswith('.npz'):
             #print('reading {}'.format(name))
             data = np.load(path+name)
             obs_list.append(data['obs'])
+            num = num + 1
+            if max_num_eps != None and num >= max_num_eps:
+                break
     all_obs = np.concatenate(obs_list, axis = 0)
     return all_obs
 
@@ -141,9 +147,9 @@ def main():
     print(device)
     #model = VAE([128,128], lr=args.lr, eps=args.eps)
     model = VAEU([128,128])
-    model_path = '/hdd_c/data/miniWorld/trained_models/VAE/VAEU.pth'
-    data_path = '/hdd_c/data/miniWorld/dataset_1/'
-    all_obs = read_data(data_path)
+    model_path = '/hdd_c/data/miniWorld/trained_models/VAE/dataset_4/VAEU.pth'
+    data_path = '/hdd_c/data/miniWorld/dataset_4/'
+    all_obs = read_data(data_path, max_num_eps=3000)
     np.random.shuffle(all_obs)
     all_obs = np.swapaxes(all_obs,1,3)
     all_obs = all_obs/255.0
@@ -157,12 +163,11 @@ def main():
     #r = model.decode(z)
     #dummy_data = np.ones([6400,3,128,128])
     print(data_eval.shape)
-    training_instance = trainVAE(device, model, lr=args.lr, eps=args.eps, data_train=data_train, data_eval=data_eval)
+    training_instance = trainVAE(device, model, lr=args.lr, eps=args.eps, data_train=data_train, data_eval=data_eval, model_path=model_path)
     training_instance.train()
     
-    save_model(training_instance.model, model_path)
     #training_instance.eval(all_obs[-10:])
-
+    save_model(training_instance.model, model_path)
 
 if __name__ == "__main__":
     main()

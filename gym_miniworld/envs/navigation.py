@@ -79,7 +79,7 @@ class Navigation(MiniWorldEnv):
                 ent = self.place_entity(Medkit(color='yellow'))
             if obj_type == Duckie:
                 ent = self.place_entity(Duckie(color='yellow'))
-            self.ent_list.append(ent)
+            #self.ent_list.append(ent)
             
             
         ent = self.place_agent()

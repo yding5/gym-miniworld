@@ -47,8 +47,8 @@ def step(env, action):
 
     obs, reward, done, info = env.step(action)
     
-    ren = env.render(mode='rgb_array')
-    top = env.render_top_view(view_size = [1280, 1280])
+    #ren = env.render(mode='rgb_array')
+    #top = env.render_top_view(view_size = [1280, 1280])
 
     ent_info = []
     for ent in info['ent_list']:
@@ -72,9 +72,9 @@ def step(env, action):
         else:
             raise NotImplementedError('unknown object type')
         if ent_name == 1:
-            ent_info.append([ent_name, ent.pos[0], ent.pos[1], ent.pos[2], ent.dir, ent.size[0], ent.size[1], ent.size[2]])
+            ent_info.append([ent_name, ent.pos[0], ent.pos[1], ent.pos[2], ent.dir, ent.size[0], ent.size[1], ent.size[2], 1.0 if ent.is_removed else 0.0])
         else:
-            ent_info.append([ent_name, ent.pos[0], ent.pos[1], ent.pos[2], ent.dir, ent.radius, ent.height, ent.radius])   
+            ent_info.append([ent_name, ent.pos[0], ent.pos[1], ent.pos[2], ent.dir, ent.radius, ent.height, ent.radius, 1.0 if ent.is_removed else 0.0])   
     ent_info = np.asarray(ent_info)
 
     if reward > 0:
@@ -82,10 +82,10 @@ def step(env, action):
     if done:
         print('done!')
         env.reset()
-    return obs, ren, top, ent_info
+    return obs, ent_info
 
 def get_one_episode(env, path, idx):
-
+    #print('get_one_episode called')
     env.reset()
 
     # Random Action
@@ -103,35 +103,30 @@ def get_one_episode(env, path, idx):
     for _ in range(80):
         if len(act_list) == 0:
             act_list = rand_act_1(env, act_list, left_turn_tendency)
-        obs, ren, top, ent_info = step(env, act_list[0])
-        
+        obs, ent_info = step(env, act_list[0])
+        del act_list[0]
         obs_seq.append(obs)
-        ren_seq.append(ren)
-        top_seq.append(top)
+        #print(ent_info.shape)
         ent_info_seq.append(ent_info)
         
-        del act_list[0]
+
 
     obs_seq = np.asarray(obs_seq)
-    top_seq = np.asarray(top_seq)
-    ren_seq = np.asarray(ren_seq)
+    #top_seq = np.asarray(top_seq)
+    #ren_seq = np.asarray(ren_seq)
     ent_info_seq = np.asarray(ent_info_seq)
     
     # rendering is not saved to save space
-    np.savez_compressed(path+'eps_{}.npz'.format(idx), obs = obs_seq, top = top_seq, ent = ent_info_seq) 
+    np.savez_compressed(path+'eps_{}.npz'.format(idx), obs = obs_seq, ent = ent_info_seq) 
 
     #return obs_seq, top_seq, ren_seq, ent_info_seq
 
 
 
-# if args.no_time_limit:
-#     env.max_episode_steps = math.inf
-
-
 path = args.path
 idx_episode = args.idx
 num_objs = args.num_objs
-print('saving to {}'.format(path))
+#print('saving to {}'.format(path))
 
 # obs_eps = []
 # ren_eps = []
@@ -140,8 +135,8 @@ print('saving to {}'.format(path))
 
 env = gym.make('MiniWorld-Food-v0', mode='data')
 #print('maximum steps: {}'.format(env.max_episode_steps))
-print('mode: {}'.format(env.mode))
-print('start episode {}'.format(idx_episode))
+#print('mode: {}'.format(env.mode))
+#print('start episode {}'.format(idx_episode))
 get_one_episode(env, path, idx_episode)
 env.close()
     #obs_seq, top_seq, ren_seq, ent_info_seq = get_one_episode(env)

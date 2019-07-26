@@ -31,6 +31,8 @@ class Entity:
 
         # Height of bounding cylinder
         self.height = 0
+        
+        self.is_removed = False
 
     def randomize(self, params, rng):
         """

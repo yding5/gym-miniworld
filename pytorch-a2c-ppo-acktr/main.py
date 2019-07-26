@@ -16,10 +16,12 @@ import torch.optim as optim
 import algo
 from arguments import get_args
 from envs import make_vec_envs
-from model import Policy, VAEU
+from model import Policy, VAEU, RNN, Detector
 from storage import RolloutStorage
 #from visualize import visdom_plot
 from utils import make_var
+
+import datetime
 
 args = get_args()
 
@@ -49,23 +51,54 @@ except OSError:
     files = glob.glob(os.path.join(eval_log_dir, '*.monitor.csv'))
     for f in files:
         os.remove(f)
-
+        
+def Detector_to_symbolic(x):
+    reshaped_x = x.view(-1,6,5)
+    #print(reshaped_x[:,:,:3])
+    idx = torch.max(reshaped_x[:,:,:3], dim=2, keepdim=True)[1].float()
+    #print(idx)
+    res = torch.cat([idx,reshaped_x[:,:,3:]], dim=2)
+    res = res.view(-1,18)
+    #print(res)
+    return res
+        
 
 def main():
     torch.set_num_threads(1)
     device = torch.device("cuda:0" if args.cuda else "cpu")
-
+    
+    ##
+    UID = 'exp_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+    step_log = []
+    reward_log = []
+    
+    ##
+    mode = 'normal'
+    ##
+    encoder = 'symbolic'
+    if encoder == 'symbolic':
+        embedding_size = (18,)
+    elif encoder == 'AE':
+        embedding_size = (200,)
+    else:
+        raise NotImplementedError('fff')
+    
     
     # load pre-trained VAE
     VAE = VAEU([128,128])
-    model_path = '/hdd_c/data/miniWorld/trained_models/VAE/VAEU.pth'
-    model = torch.load(model_path)
-    model.eval()
+    model_path = '/hdd_c/data/miniWorld/trained_models/VAE/dataset_4/VAEU.pth'
+    VAE = torch.load(model_path)
+    VAE.eval()
     
-    embedding_size = (200,)
+    Detector_model = Detector
+    model_path = '/hdd_c/data/miniWorld/trained_models/Detector/dataset_5/Detector_resnet18_e14.pth'
+    Detector_model = torch.load(model_path)
     
     
-    
+    RNN_model = RNN(200, 128)
+    model_path = '/hdd_c/data/miniWorld/trained_models/RNN/RNN1.pth'
+    RNN_model = torch.load(model_path)
+    RNN_model.eval()
     
     
     """
@@ -75,6 +108,10 @@ def main():
         win = None
     """
 
+
+    
+    
+    
     envs = make_vec_envs(args.env_name, args.seed, args.num_processes,
                         args.gamma, args.log_dir, args.add_timestep, device, False)
     
@@ -112,10 +149,22 @@ def main():
     obs = envs.reset()
     #print(obs.size())
     #obs = make_var(obs)
-    #print(obs.size())
+    print(obs.size())
     with torch.no_grad():
-        z = model.encode(obs)
-        rollouts.obs[0].copy_(z)
+        if encoder == 'symbolic':
+            
+            z = Detector_model(obs)
+            print(z.size())
+            z = Detector_to_symbolic(z)
+            rollouts.obs[0].copy_(z)
+        elif encoder == 'AE':
+            z = VAE.encode(obs)
+            rollouts.obs[0].copy_(z)
+        else:
+            raise NotImplementedError('fff')
+
+    
+        
     #rollouts.obs[0].copy_(obs)
     rollouts.to(device)
 
@@ -123,8 +172,13 @@ def main():
 
     start = time.time()
     for j in range(num_updates):
+        #print(j)
         for step in range(args.num_steps):
+            #print(step)
+            #print(rollouts.obs[step])
+            #print(type(rollouts.obs[step]))
             # Sample actions
+            #print(step)
             with torch.no_grad():
                 value, action, action_log_prob, recurrent_hidden_states = actor_critic.act(
                         rollouts.obs[step],
@@ -132,10 +186,23 @@ def main():
                         rollouts.masks[step])
 
             # Obser reward and next obs
-            obs, reward, done, infos = envs.step(action)
+            #print(action)
+            #print(type(action))
             with torch.no_grad():
+                obs, reward, done, infos = envs.step(action)
+                if encoder == 'symbolic':
+                    #print(obs.size())
+                    np.save('/hdd_c/data/miniWorld/training_obs_{}.npy'.format(step),obs.detach().cpu().numpy())
+                    z = Detector_model(obs/255.0)
+                    z = Detector_to_symbolic(z)
+                    #print(z)
+                    np.save('/hdd_c/data/miniWorld/training_z_{}.npy'.format(step),z.detach().cpu().numpy())
+                elif encoder == 'AE':
+                    z = VAE.encode(obs)
+                else:
+                    raise NotImplementedError('fff')
                 #obs = make_var(obs)
-                z = model.encode(obs)
+                
 
             """
             for info in infos:
@@ -144,10 +211,16 @@ def main():
                     episode_rewards.append(info['episode']['r'])
             """
 
+#             # FIXME: works only for environments with sparse rewards
+#             for idx, eps_done in enumerate(done):
+#                 if eps_done:
+#                     episode_rewards.append(reward[idx])
+                    
             # FIXME: works only for environments with sparse rewards
             for idx, eps_done in enumerate(done):
                 if eps_done:
-                    episode_rewards.append(reward[idx])
+                    #print('done')
+                    episode_rewards.append(infos[idx]['accumulated_reward'])
 
             # If done then clean the history of observations.
             masks = torch.FloatTensor([[0.0] if done_ else [1.0] for done_ in done])
@@ -185,7 +258,14 @@ def main():
             torch.save(save_model, os.path.join(save_path, args.env_name + ".pt"))
 
         total_num_steps = (j + 1) * args.num_processes * args.num_steps
-
+        #print(len(episode_rewards))
+        
+        step_log.append(total_num_steps)
+        reward_log.append(np.mean(episode_rewards))
+        step_log_np = np.asarray(step_log)
+        reward_log_np = np.asarray(reward_log)
+        np.savez_compressed('/hdd_c/data/miniWorld/log/{}.npz'.format(UID),step=step_log_np, reward=reward_log_np)
+        
         if j % args.log_interval == 0 and len(episode_rewards) > 1:
             end = time.time()
             print("Updates {}, num timesteps {}, FPS {} \n Last {} training episodes: mean/median reward {:.2f}/{:.2f}, min/max reward {:.2f}/{:.2f}, success rate {:.2f}\n".
