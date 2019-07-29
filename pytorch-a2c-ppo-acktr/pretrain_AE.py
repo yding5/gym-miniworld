@@ -16,7 +16,7 @@ import torch.optim as optim
 #import algo
 from arguments import get_args
 #from envs import make_vec_envs
-from model import VAE, VAER
+from model import VAE, VAEU
 from storage import RolloutStorage
 #from visualize import visdom_plot
 import argparse
@@ -30,48 +30,29 @@ class trainVAE():
         self.batch_size = batch_size
         self.data_train = data_train
         self.data_eval = data_eval
-        self.BCELoss = nn.BCELoss(reduction='mean')
-        #self.MSELoss = 
+        self.BCELoss = nn.BCELoss()
         self.model_path = model_path
-        
         
     def train(self, data=None):
         if data == None:
             data = self.data_train
         self.model.train()
-        
-        #KL_weight = 0
-        
-
-        
         #np.save('/hdd_c/data/miniWorld/obs/eval_input_batch_test_train.npy',data[:32])
         for e in range(15):
-            
             num_batch = len(data)//self.batch_size
-            
             #idx = 0
             for i in range(num_batch):
                 batch = data[i*self.batch_size:(i+1)*self.batch_size]
                 batch = make_var(batch)
                 self.optimizer.zero_grad()
 
-                y, mu, logsigma = self.model(batch)
+                z = self.model.encode(batch)
+                y = self.model.decode(z)
                 #print(y.size())
-                            
-                if e == 0:
-                    KL_weight = 0
-                elif e == 1:
-                    KL_weight = 0.01*i/num_batch
-                else:
-                    KL_weight = 0.01
-                
-                KLLoss = KL_weight * (-0.5 * torch.sum(1 + 2 * logsigma - mu.pow(2) - (2 * logsigma).exp()))/self.batch_size/(batch.size()[1]*batch.size()[1])
-                #print(KLLoss.size())
-                ReconstructionLoss = self.BCELoss(y, batch)
-                loss = (ReconstructionLoss + KLLoss)
+                loss = self.BCELoss(y, batch)
                 
                 if i % 100 == 0:
-                    print('Loss at epoch {} batch {}: {}, Rec {}, KL {}'.format(e, i, loss, ReconstructionLoss, KLLoss))
+                    print('Loss at epoch {} batch {}: {}'.format(e, i, loss))
                 
                 loss.backward()
                 self.optimizer.step()
@@ -89,11 +70,11 @@ class trainVAE():
             for i in range(num_batch):
                 batch = data[i*self.batch_size:(i+1)*self.batch_size]
                 batch = make_var(batch)
-                y, mu, logsigma = self.model(batch)
+                z = self.model.encode(batch)
+                y = self.model.decode(z)
                 if i == 0:
-                    print(logsigma[0])
-                    np.save(path+'VAER_eval_reconstruction_batch_{}.npy'.format(i), y.detach().cpu())
-                    np.save(path+'VAER_eval_input_batch_{}.npy'.format(i), batch.detach().cpu())
+                    np.save(path+'VAEU_eval_reconstruction_batch_{}.npy'.format(i), y.detach().cpu())
+                    np.save(path+'VAEU_eval_input_batch_{}.npy'.format(i), batch.detach().cpu())
                 diff = y - batch
                 loss = (diff * diff).mean() # L2 loss
                 loss_list.append(loss)
@@ -165,22 +146,17 @@ def main():
     
     print(device)
     #model = VAE([128,128], lr=args.lr, eps=args.eps)
-    model = VAER([128,128])
-    model_path = '/hdd_c/data/miniWorld/trained_models/VAE/dataset_5/VAER.pth'
-    data_path = '/hdd_c/data/miniWorld/dataset_5/'
+    model = VAEU([128,128])
+    model_path = '/hdd_c/data/miniWorld/trained_models/VAE/dataset_4/VAEU.pth'
+    data_path = '/hdd_c/data/miniWorld/dataset_4/'
     all_obs = read_data(data_path, max_num_eps=3000)
-    
     np.random.shuffle(all_obs)
     all_obs = np.swapaxes(all_obs,1,3)
     all_obs = all_obs/255.0
     print('Available number of obs: {}'.format(len(all_obs)))
     print(all_obs.shape)
-    
-    split_point = int(len(all_obs)*0.8)
-    
-    data_train = all_obs[:split_point]
-    data_eval = all_obs[split_point:]
-    
+    data_train = all_obs[:96000]
+    data_eval = all_obs[96000:128000]
     #image = np.zeros([32,3,128,128])
     #image = make_var(image)
     #z = model.encode(image)

@@ -75,8 +75,175 @@ class RNN(nn.Module):
         conf = self.sigmoid(self.toConf(out))
         return obj, conf
     
+#   
+class SimGAN(nn.Module):
+    def __init__(self, obs_shape):
+        super(SimGAN, self).__init__()
+        self.encoder = nn.Sequential(
+            #Print(),
+            nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(),
+            #Print(),
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(),
+            #Print(),
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(),
+            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(),
+            Flatten(),
+
+            nn.Linear(256*8*8, 200)
+        )
+
+        self.decoder = nn.Sequential(
+
+            nn.Linear(118, 256*8*8),
+            #Print(),
+            DeFlatten8(),
+            nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(),
+            #Print(),
+            nn.Upsample(scale_factor=2, mode='nearest'), 
+            nn.Conv2d(128, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(),
+            #Print(),
+            nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(64, 32, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(),
+            #Print(),
+
+            nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(32, 3, kernel_size=3, stride=1, padding=1),
+            #nn.BatchNorm2d(3),
+            nn.Sigmoid(),
+            #nn.ConvTranspose2d(32, 3, kernel_size=3, stride=1),
+            #nn.BatchNorm2d(32),
+            #nn.LeakyReLU(),
+            #Print(),
+        )
+
+        self.apply(init_weights)
+        
+    def encode(self, x):
+        
+        out = self.encoder(x)
+        mu = out[:,:100]
+        logsigma = out[:,100:]
+        return mu,logsigma
+    
+    def decode(self, x, c):
+        latent = torch.cat((x,c), dim=1)
+        return self.decoder(latent)
+    
+    def reparametersize(self, mu, logsigma):
+        sigma = logsigma.exp()
+        eps = torch.rand_like(sigma)
+        #print(eps.size())
+        #print(sigma.size())
+        #print(mu.size())
+        z = eps.mul(sigma).add_(mu)
+        return z
+        
+    def forward(self, x):
+        mu, logsigma = self.encode(x)
+        z = self.reparametersize(mu, logsigma)
+        return self.decode(z), mu, logsigma
     
     
+# This real VAE    
+class VAER(nn.Module):
+    def __init__(self, obs_shape):
+        super(VAER, self).__init__()
+        self.encoder = nn.Sequential(
+            #Print(),
+            nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(),
+            #Print(),
+            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(),
+            #Print(),
+            nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(),
+            nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(),
+            Flatten(),
+
+            nn.Linear(256*8*8, 200)
+        )
+
+        self.decoder = nn.Sequential(
+
+            nn.Linear(100, 256*8*8),
+            #Print(),
+            DeFlatten8(),
+            nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(),
+            #Print(),
+            nn.Upsample(scale_factor=2, mode='nearest'), 
+            nn.Conv2d(128, 64, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(64),
+            nn.LeakyReLU(),
+            #Print(),
+            nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(64, 32, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(32),
+            nn.LeakyReLU(),
+            #Print(),
+
+            nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(32, 3, kernel_size=3, stride=1, padding=1),
+            #nn.BatchNorm2d(3),
+            nn.Sigmoid(),
+            #nn.ConvTranspose2d(32, 3, kernel_size=3, stride=1),
+            #nn.BatchNorm2d(32),
+            #nn.LeakyReLU(),
+            #Print(),
+        )
+
+        self.apply(init_weights)
+        
+    def encode(self, x):
+        
+        out = self.encoder(x)
+        mu = out[:,:100]
+        logsigma = out[:,100:]
+        return mu,logsigma
+    
+    def decode(self, x):
+        return self.decoder(x)
+    
+    def reparametersize(self, mu, logsigma):
+        sigma = logsigma.exp()
+        eps = torch.rand_like(sigma)
+        #print(eps.size())
+        #print(sigma.size())
+        #print(mu.size())
+        z = eps.mul(sigma).add_(mu)
+        return z
+        
+    def forward(self, x):
+        mu, logsigma = self.encode(x)
+        z = self.reparametersize(mu, logsigma)
+        return self.decode(z), mu, logsigma
+    
+    #self.optimizer = optim.Adam(self.parameters(), lr=lr, eps=eps)
+        
+# This is only AE    
 class VAEU(nn.Module):
     def __init__(self, obs_shape):
         super(VAEU, self).__init__()
@@ -161,7 +328,7 @@ class VAEU(nn.Module):
     
     #self.optimizer = optim.Adam(self.parameters(), lr=lr, eps=eps)
     
-    
+# This is only AE     
 class VAE(nn.Module):
     def __init__(self, obs_shape):
         super(VAE, self).__init__()

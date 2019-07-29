@@ -23,7 +23,7 @@ import argparse
 from utils import make_var
 
 
-class trainVAE():
+class trainSimGAN():
     def __init__(self, device, model, lr, eps, data_train, data_eval, model_path, batch_size = 32):
         self.model = model.to(device)
         self.optimizer = optim.Adam(model.parameters(), lr=lr, eps=eps)
@@ -39,16 +39,9 @@ class trainVAE():
         if data == None:
             data = self.data_train
         self.model.train()
-        
-        #KL_weight = 0
-        
-
-        
         #np.save('/hdd_c/data/miniWorld/obs/eval_input_batch_test_train.npy',data[:32])
         for e in range(15):
-            
             num_batch = len(data)//self.batch_size
-            
             #idx = 0
             for i in range(num_batch):
                 batch = data[i*self.batch_size:(i+1)*self.batch_size]
@@ -57,15 +50,7 @@ class trainVAE():
 
                 y, mu, logsigma = self.model(batch)
                 #print(y.size())
-                            
-                if e == 0:
-                    KL_weight = 0
-                elif e == 1:
-                    KL_weight = 0.01*i/num_batch
-                else:
-                    KL_weight = 0.01
-                
-                KLLoss = KL_weight * (-0.5 * torch.sum(1 + 2 * logsigma - mu.pow(2) - (2 * logsigma).exp()))/self.batch_size/(batch.size()[1]*batch.size()[1])
+                KLLoss = 0.01*(-0.5 * torch.sum(1 + 2 * logsigma - mu.pow(2) - (2 * logsigma).exp()))/self.batch_size/(batch.size()[1]*batch.size()[1])
                 #print(KLLoss.size())
                 ReconstructionLoss = self.BCELoss(y, batch)
                 loss = (ReconstructionLoss + KLLoss)
@@ -165,8 +150,10 @@ def main():
     
     print(device)
     #model = VAE([128,128], lr=args.lr, eps=args.eps)
-    model = VAER([128,128])
-    model_path = '/hdd_c/data/miniWorld/trained_models/VAE/dataset_5/VAER.pth'
+    
+    
+    model = SimGAN([128,128])
+    model_path = '/hdd_c/data/miniWorld/trained_models/SimGAN/dataset_5/SimGAN.pth'
     data_path = '/hdd_c/data/miniWorld/dataset_5/'
     all_obs = read_data(data_path, max_num_eps=3000)
     
