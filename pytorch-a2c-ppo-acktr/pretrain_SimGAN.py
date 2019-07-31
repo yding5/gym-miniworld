@@ -112,9 +112,9 @@ class trainSimGAN():
                                 
                 if i % 500 == 0:
                     print('Loss at epoch {} batch {}: D: {}, G {}, E {}'.format(e, i, D_loss, G_loss, E_loss))
-                    np.save('rec.npy',decoded_fake.detach().cpu().numpy())
-                    np.save('rec_enc.npy',decoded_enc.detach().cpu().numpy())
-                    np.save('real.npy',batch.detach().cpu().numpy())
+                    np.save('/hdd_c/data/miniWorld/obs/rec.npy',decoded_fake.detach().cpu().numpy())
+                    np.save('/hdd_c/data/miniWorld/obs/rec_enc.npy',decoded_enc.detach().cpu().numpy())
+                    np.save('/hdd_c/data/miniWorld/obs/real.npy',batch.detach().cpu().numpy())
 
             #self.eval()
             save_model(self.model, self.model_path+'_epoch_{}_backup'.format(e))
