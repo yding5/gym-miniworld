@@ -221,9 +221,7 @@ def read_data(path, max_num_eps = None):
     all_y = np.concatenate(y_list, axis = 0)
     return all_obs, all_y
 
-#         x = math.cos(self.dir)
-#         z = -math.sin(self.dir)
-#         return np.array([x, 0, z])
+
 
 def coor_trans(agent_pos, agent_dir, obj_pos):
     translated_obj_x = obj_pos[0] - agent_pos[0]

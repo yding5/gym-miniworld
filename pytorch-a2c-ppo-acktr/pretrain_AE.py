@@ -16,14 +16,14 @@ import torch.optim as optim
 #import algo
 from arguments import get_args
 #from envs import make_vec_envs
-from model import VAE, VAEU
+from model import AE
 from storage import RolloutStorage
 #from visualize import visdom_plot
 import argparse
 from utils import make_var
 
 
-class trainVAE():
+class trainAE():
     def __init__(self, device, model, lr, eps, data_train, data_eval, model_path, batch_size = 32):
         self.model = model.to(device)
         self.optimizer = optim.Adam(model.parameters(), lr=lr, eps=eps)
@@ -38,7 +38,7 @@ class trainVAE():
             data = self.data_train
         self.model.train()
         #np.save('/hdd_c/data/miniWorld/obs/eval_input_batch_test_train.npy',data[:32])
-        for e in range(15):
+        for e in range(20):
             num_batch = len(data)//self.batch_size
             #idx = 0
             for i in range(num_batch):
@@ -73,8 +73,8 @@ class trainVAE():
                 z = self.model.encode(batch)
                 y = self.model.decode(z)
                 if i == 0:
-                    np.save(path+'VAEU_eval_reconstruction_batch_{}.npy'.format(i), y.detach().cpu())
-                    np.save(path+'VAEU_eval_input_batch_{}.npy'.format(i), batch.detach().cpu())
+                    np.save(path+'AE_eval_reconstruction_batch_{}.npy'.format(i), y.detach().cpu())
+                    np.save(path+'AE_eval_input_batch_{}.npy'.format(i), batch.detach().cpu())
                 diff = y - batch
                 loss = (diff * diff).mean() # L2 loss
                 loss_list.append(loss)
@@ -146,24 +146,29 @@ def main():
     
     print(device)
     #model = VAE([128,128], lr=args.lr, eps=args.eps)
-    model = VAEU([128,128])
-    model_path = '/hdd_c/data/miniWorld/trained_models/VAE/dataset_4/VAEU.pth'
-    data_path = '/hdd_c/data/miniWorld/dataset_4/'
+    model = AE([128,128])
+    model_path = '/hdd_c/data/miniWorld/trained_models/AE/dataset_5/AE.pth'
+    data_path = '/hdd_c/data/miniWorld/dataset_5/'
     all_obs = read_data(data_path, max_num_eps=3000)
     np.random.shuffle(all_obs)
     all_obs = np.swapaxes(all_obs,1,3)
     all_obs = all_obs/255.0
     print('Available number of obs: {}'.format(len(all_obs)))
     print(all_obs.shape)
-    data_train = all_obs[:96000]
-    data_eval = all_obs[96000:128000]
+    
+        
+    split_point = int(len(all_obs)*0.8)
+    
+    data_train = all_obs[:split_point]
+    data_eval = all_obs[split_point:]
+
     #image = np.zeros([32,3,128,128])
     #image = make_var(image)
     #z = model.encode(image)
     #r = model.decode(z)
     #dummy_data = np.ones([6400,3,128,128])
     print(data_eval.shape)
-    training_instance = trainVAE(device, model, lr=args.lr, eps=args.eps, data_train=data_train, data_eval=data_eval, model_path=model_path)
+    training_instance = trainAE(device, model, lr=args.lr, eps=args.eps, data_train=data_train, data_eval=data_eval, model_path=model_path)
     training_instance.train()
     
     #training_instance.eval(all_obs[-10:])

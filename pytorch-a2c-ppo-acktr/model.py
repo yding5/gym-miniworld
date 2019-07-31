@@ -18,6 +18,11 @@ class DeFlatten8(nn.Module):
     def forward(self, x):
         return x.view(x.size(0), -1, 8, 8) 
     
+    
+class DeFlatten4(nn.Module):
+    def forward(self, x):
+        return x.view(x.size(0), -1, 4, 4) 
+    
 class Detector(nn.Module):
     def __init__(self):
         super(Detector, self).__init__()
@@ -79,9 +84,11 @@ class RNN(nn.Module):
 class SimGAN(nn.Module):
     def __init__(self, obs_shape):
         super(SimGAN, self).__init__()
-        self.encoder = nn.Sequential(
+        self.encoder = resnet18_112()
+
+        self.discriminator = nn.Sequential(
             #Print(),
-            nn.Conv2d(3, 32, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(3+18, 32, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(32),
             nn.LeakyReLU(),
             #Print(),
@@ -95,34 +102,42 @@ class SimGAN(nn.Module):
             nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(),
+            nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(),
             Flatten(),
 
-            nn.Linear(256*8*8, 200)
+            nn.Linear(512*4*4, 1),
+            nn.Sigmoid()
         )
-
+        
         self.decoder = nn.Sequential(
 
-            nn.Linear(118, 256*8*8),
+            nn.Linear(100, 1024*4*4),
             #Print(),
-            DeFlatten8(),
+            DeFlatten4(),
             nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(1024, 512, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(),
+            nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(512, 256, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(),
+            #Print(),
+            nn.Upsample(scale_factor=2, mode='nearest'), 
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(128),
             nn.LeakyReLU(),
             #Print(),
-            nn.Upsample(scale_factor=2, mode='nearest'), 
+            nn.Upsample(scale_factor=2, mode='nearest'),   
             nn.Conv2d(128, 64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(),
             #Print(),
-            nn.Upsample(scale_factor=2, mode='nearest'),   
-            nn.Conv2d(64, 32, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32),
-            nn.LeakyReLU(),
-            #Print(),
 
             nn.Upsample(scale_factor=2, mode='nearest'),   
-            nn.Conv2d(32, 3, kernel_size=3, stride=1, padding=1),
+            nn.Conv2d(64, 3, kernel_size=3, stride=1, padding=1),
             #nn.BatchNorm2d(3),
             nn.Sigmoid(),
             #nn.ConvTranspose2d(32, 3, kernel_size=3, stride=1),
@@ -131,32 +146,49 @@ class SimGAN(nn.Module):
             #Print(),
         )
 
-        self.apply(init_weights)
+        self.discriminator.apply(init_weights)
+        self.decoder.apply(init_weights)
         
     def encode(self, x):
-        
         out = self.encoder(x)
-        mu = out[:,:100]
-        logsigma = out[:,100:]
-        return mu,logsigma
+        return out
     
-    def decode(self, x, c):
-        latent = torch.cat((x,c), dim=1)
-        return self.decoder(latent)
-    
-    def reparametersize(self, mu, logsigma):
-        sigma = logsigma.exp()
-        eps = torch.rand_like(sigma)
-        #print(eps.size())
-        #print(sigma.size())
-        #print(mu.size())
-        z = eps.mul(sigma).add_(mu)
-        return z
+    def decode(self, x):
+        return self.decoder(x)
+        #latent = torch.cat((x,c), dim=1)
+        #return self.decoder(latent)
         
-    def forward(self, x):
-        mu, logsigma = self.encode(x)
-        z = self.reparametersize(mu, logsigma)
-        return self.decode(z), mu, logsigma
+    def get_infer_latent(self, x):
+        c = x[:,82:]
+        c_size = c.size()
+        c = c.view(c_size[0],6,5)
+        idx = torch.argmax(c[:,:,:3], dim=2, keepdim=True)
+        #print(c.size())
+        #c[:,:,:3] = idx
+        reduced_c = torch.cat((idx.float(), c[:,:,3:]),dim=2)
+        #print(c.size())
+        #print(reduced_c.size())
+        latent = torch.cat((x[:,:82], reduced_c.view(c_size[0],18)), dim=1)
+        return latent
+    
+    def prepare_dis_input(self, image, c):
+        image_size = image.size()[2]
+        c = torch.unsqueeze(c,-1)
+        c = torch.unsqueeze(c,-1)
+        c = c.repeat(1, 1, image_size, image_size)
+        dis_input = torch.cat((image,c), dim=1)
+        return dis_input
+    
+#     def reparametersize(self, mu, logsigma):
+#         sigma = logsigma.exp()
+#         eps = torch.rand_like(sigma)
+#         z = eps.mul(sigma).add_(mu)
+#         return z
+        
+    #def forward(self, x):
+    #    mu, logsigma = self.encode(x)
+    #    z = self.reparametersize(mu, logsigma)
+    #    return self.decode(z), mu, logsigma
     
     
 # This real VAE    
@@ -179,16 +211,23 @@ class VAER(nn.Module):
             nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(),
+            nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(),
             Flatten(),
 
-            nn.Linear(256*8*8, 200)
+            nn.Linear(512*4*4, 200)
         )
 
         self.decoder = nn.Sequential(
 
-            nn.Linear(100, 256*8*8),
+            nn.Linear(100, 512*4*4),
             #Print(),
-            DeFlatten8(),
+            DeFlatten4(),
+            nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(512, 256, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(),
             nn.Upsample(scale_factor=2, mode='nearest'),   
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(128),
@@ -228,7 +267,7 @@ class VAER(nn.Module):
         return self.decoder(x)
     
     def reparametersize(self, mu, logsigma):
-        sigma = logsigma.exp()
+        sigma = torch.exp(0.5*logsigma)
         eps = torch.rand_like(sigma)
         #print(eps.size())
         #print(sigma.size())
@@ -244,9 +283,9 @@ class VAER(nn.Module):
     #self.optimizer = optim.Adam(self.parameters(), lr=lr, eps=eps)
         
 # This is only AE    
-class VAEU(nn.Module):
+class AE(nn.Module):
     def __init__(self, obs_shape):
-        super(VAEU, self).__init__()
+        super(AE, self).__init__()
         self.encoder = nn.Sequential(
             #Print(),
 
@@ -267,18 +306,25 @@ class VAEU(nn.Module):
             nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1),
             nn.BatchNorm2d(256),
             nn.LeakyReLU(),
+            nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(),
             Flatten(),
 
             #nn.Dropout(0.2),
-            nn.Linear(256*8*8, 200)
+            nn.Linear(512*4*4, 100)
             
         )
 
         self.decoder = nn.Sequential(
 
-            nn.Linear(200, 256*8*8),
+            nn.Linear(100, 512*4*4),
             #Print(),
-            DeFlatten8(),
+            DeFlatten4(),
+            nn.Upsample(scale_factor=2, mode='nearest'),   
+            nn.Conv2d(512, 256, kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(),
             nn.Upsample(scale_factor=2, mode='nearest'),   
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(128),
@@ -848,6 +894,18 @@ def resnet18(pretrained=False, progress=True, **kwargs):
         progress (bool): If True, displays a progress bar of the download to stderr
     """
     return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress,
+                   **kwargs)
+
+
+def resnet18_112(pretrained=False, progress=True, **kwargs):
+    r"""ResNet-18 model from
+    `"Deep Residual Learning for Image Recognition" <https://arxiv.org/pdf/1512.03385.pdf>'_
+
+    Args:
+        pretrained (bool): If True, returns a model pre-trained on ImageNet
+        progress (bool): If True, displays a progress bar of the download to stderr
+    """
+    return _resnet('resnet18', BasicBlock, [2, 2, 2, 2], pretrained, progress, num_classes=112,
                    **kwargs)
 
 

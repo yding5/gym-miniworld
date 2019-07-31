@@ -30,7 +30,7 @@ class trainVAE():
         self.batch_size = batch_size
         self.data_train = data_train
         self.data_eval = data_eval
-        self.BCELoss = nn.BCELoss(reduction='mean')
+        self.BCELoss = nn.BCELoss(reduction='sum')
         #self.MSELoss = 
         self.model_path = model_path
         
@@ -45,7 +45,7 @@ class trainVAE():
 
         
         #np.save('/hdd_c/data/miniWorld/obs/eval_input_batch_test_train.npy',data[:32])
-        for e in range(15):
+        for e in range(20):
             
             num_batch = len(data)//self.batch_size
             
@@ -58,19 +58,19 @@ class trainVAE():
                 y, mu, logsigma = self.model(batch)
                 #print(y.size())
                             
-                if e == 0:
+                if e < 2:
                     KL_weight = 0
-                elif e == 1:
-                    KL_weight = 0.01*i/num_batch
+                elif e == 2:
+                    KL_weight = 1*i/num_batch
                 else:
-                    KL_weight = 0.01
+                    KL_weight = 1
                 
-                KLLoss = KL_weight * (-0.5 * torch.sum(1 + 2 * logsigma - mu.pow(2) - (2 * logsigma).exp()))/self.batch_size/(batch.size()[1]*batch.size()[1])
+                KLLoss = (-0.5 * torch.sum(1 + logsigma - mu.pow(2) - logsigma.exp()))
                 #print(KLLoss.size())
                 ReconstructionLoss = self.BCELoss(y, batch)
-                loss = (ReconstructionLoss + KLLoss)
+                loss = (ReconstructionLoss + KL_weight * KLLoss)
                 
-                if i % 100 == 0:
+                if i % 500 == 0:
                     print('Loss at epoch {} batch {}: {}, Rec {}, KL {}'.format(e, i, loss, ReconstructionLoss, KLLoss))
                 
                 loss.backward()

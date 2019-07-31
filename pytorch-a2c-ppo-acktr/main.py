@@ -16,7 +16,7 @@ import torch.optim as optim
 import algo
 from arguments import get_args
 from envs import make_vec_envs
-from model import Policy, VAEU, RNN, Detector
+from model import Policy, AE, RNN, Detector, VAER, SimGAN
 from storage import RolloutStorage
 #from visualize import visdom_plot
 from utils import make_var
@@ -65,39 +65,51 @@ def Detector_to_symbolic(x):
 
 def main():
     torch.set_num_threads(1)
-    device = torch.device("cuda:0" if args.cuda else "cpu")
+    device = torch.device("cuda:1" if args.cuda else "cpu")
     
     ##
     UID = 'exp_{}'.format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
     step_log = []
     reward_log = []
     
-    ##
+    ## To be used to selec environment
     mode = 'normal'
-    ##
-    encoder = 'symbolic'
+    
+    # encoder type
+    encoder = 'sym_VAE'
     if encoder == 'symbolic':
         embedding_size = (18,)
     elif encoder == 'AE':
         embedding_size = (200,)
+    elif encoder == 'VAE':
+        embedding_size = (100,)
+    elif encoder == 'sym_VAE':
+        embedding_size = (118,)
     else:
         raise NotImplementedError('fff')
     
     
+    # load pre-trained AE
+    #AE = VAEU([128,128])
+    #model_path = '/hdd_c/data/miniWorld/trained_models/VAE/dataset_4/VAEU.pth'
+    #AE = torch.load(model_path)
+    #AE.eval()
+    
     # load pre-trained VAE
-    VAE = VAEU([128,128])
-    model_path = '/hdd_c/data/miniWorld/trained_models/VAE/dataset_4/VAEU.pth'
-    VAE = torch.load(model_path)
+    VAE = VAER([128,128])
+    model_path = '/hdd_c/data/miniWorld/trained_models/VAE/dataset_5/VAER.pth'
+    VAE = torch.load(model_path).to(device)
     VAE.eval()
     
+    # load pre-trained detector
     Detector_model = Detector
     model_path = '/hdd_c/data/miniWorld/trained_models/Detector/dataset_5/Detector_resnet18_e14.pth'
-    Detector_model = torch.load(model_path)
+    Detector_model = torch.load(model_path).to(device)
     
-    
+    # load pre-trained RNN
     RNN_model = RNN(200, 128)
     model_path = '/hdd_c/data/miniWorld/trained_models/RNN/RNN1.pth'
-    RNN_model = torch.load(model_path)
+    RNN_model = torch.load(model_path).to(device)
     RNN_model.eval()
     
     
@@ -158,7 +170,16 @@ def main():
             z = Detector_to_symbolic(z)
             rollouts.obs[0].copy_(z)
         elif encoder == 'AE':
-            z = VAE.encode(obs)
+            z = AE.encode(obs)
+            rollouts.obs[0].copy_(z)
+        elif encoder == 'VAE':
+            z = VAE.encode(obs)[0]
+            rollouts.obs[0].copy_(z)
+        elif encoder == 'sym_VAE':
+            z_vae = VAE.encode(obs)[0]
+            z_sym = Detector_model(obs)
+            z_sym = Detector_to_symbolic(z_sym)
+            z = torch.cat((z_vae,z_sym),dim=1)
             rollouts.obs[0].copy_(z)
         else:
             raise NotImplementedError('fff')
@@ -174,9 +195,6 @@ def main():
     for j in range(num_updates):
         #print(j)
         for step in range(args.num_steps):
-            #print(step)
-            #print(rollouts.obs[step])
-            #print(type(rollouts.obs[step]))
             # Sample actions
             #print(step)
             with torch.no_grad():
@@ -187,7 +205,6 @@ def main():
 
             # Obser reward and next obs
             #print(action)
-            #print(type(action))
             with torch.no_grad():
                 obs, reward, done, infos = envs.step(action)
                 if encoder == 'symbolic':
@@ -198,7 +215,14 @@ def main():
                     #print(z)
                     np.save('/hdd_c/data/miniWorld/training_z_{}.npy'.format(step),z.detach().cpu().numpy())
                 elif encoder == 'AE':
-                    z = VAE.encode(obs)
+                    z = AE.encode(obs)
+                elif encoder == 'VAE':
+                    z = VAE.encode(obs)[0]
+                elif encoder == 'sym_VAE':
+                    z_vae = VAE.encode(obs)[0]
+                    z_sym = Detector_model(obs)
+                    z_sym = Detector_to_symbolic(z_sym)
+                    z = torch.cat((z_vae,z_sym),dim=1)
                 else:
                     raise NotImplementedError('fff')
                 #obs = make_var(obs)
